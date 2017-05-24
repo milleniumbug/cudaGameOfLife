@@ -14,7 +14,7 @@
 const int maxNeighbourCount = 8;
 const int maxNeighbourAndSelfCount = maxNeighbourCount + 1;
 const int center = 4;
-const int upOrDown = 2;
+const int upOrDown = 3;
 const int leftOrRight = 1;
 const int blockDimension = 64;
 const dim3 threadsPerBlock(16, 16);
@@ -116,7 +116,7 @@ __global__ void nextGenerationKernel(bool* next_generation, const bool* const* s
 		if(x == 0 &&                  y == blockDimension - 1)
 			out[center - leftOrRight + upOrDown] = true;
 		if(                           y == blockDimension - 1)
-			out[center + upOrDown] = true;
+			out[center               + upOrDown] = true;
 		if(x == blockDimension - 1 && y == blockDimension - 1)
 			out[center + leftOrRight + upOrDown] = true;
 	}
@@ -305,7 +305,10 @@ class GameOfLife
 	void materializeAt(position_type pos)
 	{
 		std::cout << "materialization request: " << pos.first << " " << pos.second << "\n";
-		materializationRequests.emplace_back(pos, GameOfLifeBlock());
+		auto block = cachedEmptyBlocks.empty() ? GameOfLifeBlock() : std::move(cachedEmptyBlocks.back());
+		if(!cachedEmptyBlocks.empty())
+			cachedEmptyBlocks.pop_back();
+		materializationRequests.emplace_back(pos, std::move(block));
 	}
 
 	void dematerializeAt(position_type pos)
@@ -319,7 +322,12 @@ class GameOfLife
 		std::cout << "materialization commit\n";
 		for(auto& key : dematerializationRequests)
 		{
-			blocks.erase(key);
+			auto it = blocks.find(key);
+			if(it != blocks.end())
+			{
+				cachedEmptyBlocks.push_back(std::move(it->second));
+				blocks.erase(it);
+			}
 		}
 		dematerializationRequests.clear();
 		for(auto& kvp : materializationRequests)
@@ -345,22 +353,22 @@ class GameOfLife
 			{
 				materializeAt(shift(position, i));
 			}
-
-			if(!borders[center])
-			{
-				dematerializeAt(position);
-			}
+		}
+		if(std::none_of(borders.begin(), borders.end(), [](bool x){ return x; }))
+		{
+			dematerializeAt(position);
 		}
 	}
 
 public:
 	void nextGeneration()
 	{
+		std::cout << "NEXTGEN\n";
 		for(auto& kvp : blocks)
 		{
 			simulateRoundFor(kvp);
 		}
-		while(!materializationRequests.empty())
+		while(!materializationRequests.empty() || !dematerializationRequests.empty())
 		{
 			for(auto& kvp : materializationRequests)
 			{
@@ -401,28 +409,33 @@ public:
 	}
 };
 
+void printAtNear(GameOfLife& game, position_type pos)
+{
+	for(int i = 0; i <= 8; ++i)
+	{
+		auto nextPos = shift(pos, i);
+		auto dump = game.dumpStateAt(nextPos);
+		std::cout << nextPos.first << " " << nextPos.second << "\n";
+		for(int j = 0; j < blockDimension; ++j)
+		{
+			for(int i = 0; i < blockDimension; ++i)
+			{
+				std::cout << (dump[i][j] ? "X" : " ");
+			}
+			std::cout << "|" << j << "\n";
+		}
+	}
+}
+
 int main()
 {
 	GameOfLife game;
-	for(int i = 0; i < 50; ++i)
+	for(int i = 0; i < 310; ++i)
 	{
 		game.nextGeneration();
-		if(i >= 38)
+		if(i >= 299)
 		{
-			for(int i = 0; i <= 8; ++i)
-			{
-				auto pos = shift(position_type(0, 0), i);
-				auto dump = game.dumpStateAt(pos);
-				std::cout << pos.first << " " << pos.second << "\n";
-				for(int j = 0; j < blockDimension; ++j)
-				{
-					for(int i = 0; i < blockDimension; ++i)
-					{
-						std::cout << (dump[i][j] ? "X" : " ");
-					}
-					std::cout << "|" << j << "\n";
-				}
-			}
+			printAtNear(game, position_type(0, 0));
 		}
 	}
 }
