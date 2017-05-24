@@ -8,23 +8,62 @@
 #include <iostream>
 #include "cudaUtils.cuh"
 
-__device__ int wrap(int in, int wrapCounter)
+const int maxNeighbourCount = 8;
+const int maxNeighbourAndSelfCount = maxNeighbourCount + 1;
+const int center = 4;
+const int upOrDown = 2;
+const int leftOrRight = 1;
+const int blockDimension = 64;
+
+__device__ int wrap(int in)
 {
-	return (in + wrapCounter * 2) % wrapCounter;
+	return (in + blockDimension * 2) % blockDimension;
 }
 
 // in < 0: -1
 // in >= 0 && in < wrapCounter: 0
 // in >= wrapCounter: 1
-__device__ int robert(int in, int wrapCounter)
+__device__ int robert(int in)
 {
 	if(in < 0)
 		return -1;
-	if(in >= wrapCounter)
+	if(in >= blockDimension)
 		return 1;
 	return 0;
 }
 
+// 0, 0 : 0
+// 0, 1 : 0
+// 0, 2 : 0
+// 0, 3 : 1
+// 0, 4 : 0
+// 0, 5 : 0
+// 0, 6 : 0
+// 0, 7 : 0
+// 0, 8 : 0
+// 0, 9 : X
+// 0, 10: X
+// 0, 11: X
+// 0, 12: X
+// 0, 13: X
+// 0, 14: X
+// 0, 15: X
+// 1, 0 : 0
+// 1, 1 : 0
+// 1, 2 : 1
+// 1, 3 : 1
+// 1, 4 : 0
+// 1, 5 : 0
+// 1, 6 : 0
+// 1, 7 : 0
+// 1, 8 : 0
+// 1, 9 : X
+// 1, 10: X
+// 1, 11: X
+// 1, 12: X
+// 1, 13: X
+// 1, 14: X
+// 1, 15: X
 __device__ bool rule(bool current, int neighbourCount)
 {
 	if(neighbourCount == 2)
@@ -35,40 +74,34 @@ __device__ bool rule(bool current, int neighbourCount)
 		return false;
 }
 
-const int maxNeighbourCount = 8;
-const int maxNeighbourAndSelfCount = maxNeighbourCount + 1;
-const int center = 4;
-const int upOrDown = 2;
-const int leftOrRight = 1;
-
-__global__ void nextGeneration(bool* next_generation, const bool* const* surrounding, int dim, bool* out)
+__global__ void nextGeneration(bool* next_generation, const bool* const* surrounding, bool* out)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
-	if(x >= dim || y >= dim)
+	if(x >= blockDimension || y >= blockDimension)
 		return;
 
 	int neighbourCount =
-		surrounding[center + robert(x - 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y - 1, dim)*dim] +
-		surrounding[center +                                    robert(y - 1, dim) * upOrDown][x +                wrap(y - 1, dim)*dim] +
-		surrounding[center + robert(x + 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y - 1, dim)*dim] +
+		surrounding[center + robert(x - 1) * leftOrRight + robert(y - 1) * upOrDown][wrap(x - 1) + wrap(y - 1)*blockDimension] +
+		surrounding[center +                               robert(y - 1) * upOrDown][x +           wrap(y - 1)*blockDimension] +
+		surrounding[center + robert(x + 1) * leftOrRight + robert(y - 1) * upOrDown][wrap(x + 1) + wrap(y - 1)*blockDimension] +
 
-		surrounding[center + robert(x - 1, dim) * leftOrRight                                ][wrap(x - 1, dim) + y*dim] +
-		surrounding[center + robert(x + 1, dim) * leftOrRight                                ][wrap(x + 1, dim) + y*dim] +
+		surrounding[center + robert(x - 1) * leftOrRight                           ][wrap(x - 1) + y*blockDimension] +
+		surrounding[center + robert(x + 1) * leftOrRight                           ][wrap(x + 1) + y*blockDimension] +
 
-		surrounding[center + robert(x - 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y + 1, dim)*dim] +
-		surrounding[center +                                    robert(y + 1, dim) * upOrDown][x +                wrap(y + 1, dim)*dim] +
-		surrounding[center + robert(x + 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y + 1, dim)*dim];
+		surrounding[center + robert(x - 1) * leftOrRight + robert(y + 1) * upOrDown][wrap(x - 1) + wrap(y + 1)*blockDimension] +
+		surrounding[center +                               robert(y + 1) * upOrDown][x +           wrap(y + 1)*blockDimension] +
+		surrounding[center + robert(x + 1) * leftOrRight + robert(y + 1) * upOrDown][wrap(x + 1) + wrap(y + 1)*blockDimension];
 
-	next_generation[x + y*dim] = rule(surrounding[center][x + y*dim], neighbourCount);
+	next_generation[x + y*blockDimension] = rule(surrounding[center][x + y*blockDimension], neighbourCount);
 
 	if(x == 0 && neighbourCount > 0)
 		out[center - leftOrRight] = true;
-	if(x == dim - 1 && neighbourCount > 0)
+	if(x == blockDimension - 1 && neighbourCount > 0)
 		out[center + leftOrRight] = true;
 	if(y == 0 && neighbourCount > 0)
 		out[center - upOrDown] = true;
-	if(y == dim - 1 && neighbourCount > 0)
+	if(y == blockDimension - 1 && neighbourCount > 0)
 		out[center + upOrDown] = true;
 }
 
@@ -111,7 +144,7 @@ int main()
 	cudaSurrounding.toDevice();
 
 	central.toDevice();
-	nextGeneration <<< dimensions, threadsPerBlock >>>(central.getDevice(), cudaSurrounding.getDevice(), dim, borderCheck.getDevice());
+	nextGeneration <<< dimensions, threadsPerBlock >>>(central.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
 	central.toHost();
 
 	borderCheck.toHost();
