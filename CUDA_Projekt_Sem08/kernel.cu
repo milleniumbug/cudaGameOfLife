@@ -6,7 +6,10 @@
 #include <cassert>
 #include <array>
 #include <iostream>
+#include <utility>
 #include "cudaUtils.cuh"
+#include <map>
+#include <vector>
 
 const int maxNeighbourCount = 8;
 const int maxNeighbourAndSelfCount = maxNeighbourCount + 1;
@@ -97,23 +100,66 @@ __global__ void nextGenerationKernel(bool* next_generation, const bool* const* s
 
 	next_generation[x + y*blockDimension] = rule(surrounding[center][x + y*blockDimension], neighbourCount);
 
-	if(x == 0 && neighbourCount > 0)
-		out[center - leftOrRight] = true;
-	if(x == blockDimension - 1 && neighbourCount > 0)
-		out[center + leftOrRight] = true;
-	if(y == 0 && neighbourCount > 0)
-		out[center - upOrDown] = true;
-	if(y == blockDimension - 1 && neighbourCount > 0)
-		out[center + upOrDown] = true;
+	if(neighbourCount > 0)
+	{
+		out[center] = true;
+		if(x == 0 &&                  y == 0)
+			out[center - leftOrRight - upOrDown] = true;
+		if(                           y == 0)
+			out[center               - upOrDown] = true;
+		if(x == blockDimension - 1 && y == 0)
+			out[center + leftOrRight - upOrDown] = true;
+		if(x == 0)
+			out[center - leftOrRight] = true;
+		if(x == blockDimension - 1)
+			out[center + leftOrRight] = true;
+		if(x == 0 &&                  y == blockDimension - 1)
+			out[center - leftOrRight + upOrDown] = true;
+		if(                           y == blockDimension - 1)
+			out[center + upOrDown] = true;
+		if(x == blockDimension - 1 && y == blockDimension - 1)
+			out[center + leftOrRight + upOrDown] = true;
+	}
+}
+
+typedef std::pair<int, int> position_type;
+
+position_type shift(position_type position, int direction)
+{
+	assert(direction >= 0 && direction <= 8);
+	switch(direction)
+	{
+	case 0:
+		return position_type(position.first - 1, position.second - 1);
+	case 1:
+		return position_type(position.first, position.second - 1);
+	case 2:
+		return position_type(position.first + 1, position.second - 1);
+	case 3:
+		return position_type(position.first - 1, position.second);
+	case center:
+		return position;
+	case 5:
+		return position_type(position.first + 1, position.second);
+	case 6:
+		return position_type(position.first - 1, position.second + 1);
+	case 7:
+		return position_type(position.first, position.second + 1);
+	case 8:
+		return position_type(position.first + 1, position.second + 1);
+	default:
+		throw "FUCK";
+	}
 }
 
 class GameOfLifeBlock
 {
-	SynchronizedPrimitiveBuffer<bool> central;
+	mutable SynchronizedPrimitiveBuffer<bool> central;
 	SynchronizedPrimitiveBuffer<bool> next;
 	SynchronizedPrimitiveBuffer<bool> borderCheck;
 	SynchronizedPrimitiveBuffer<const bool*> cudaSurrounding;
-	cudaMemcpyKind synchronized;
+	mutable cudaMemcpyKind synchronized;
+	bool commited;
 
 public:
 	GameOfLifeBlock() :
@@ -121,13 +167,28 @@ public:
 		next(blockDimension*blockDimension),
 		borderCheck(maxNeighbourAndSelfCount),
 		cudaSurrounding(maxNeighbourAndSelfCount),
-		synchronized(cudaMemcpyHostToHost) // cudaMemcpyHostToHost means it's synchronized
+		synchronized(cudaMemcpyHostToHost), // cudaMemcpyHostToHost means it's synchronized
+		commited(true)
 	{
 		
 	}
 
+	std::array<bool, maxNeighbourAndSelfCount> bordersToHost()
+	{
+		borderCheck.copyToHost();
+		std::array<bool, maxNeighbourAndSelfCount> result;
+		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+		{
+			result[i] = borderCheck[i];
+		}
+		return result;
+	}
+
 	std::array<bool, maxNeighbourAndSelfCount> nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
 	{
+		if(!commited)
+			return bordersToHost();
+
 		if(synchronized == cudaMemcpyHostToDevice)
 		{
 			central.copyToDevice();
@@ -146,16 +207,18 @@ public:
 		};
 		toDev();
 		nextGenerationKernel <<< dimensions, threadsPerBlock >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
-		std::swap(central, next);
-		borderCheck.copyToHost();
-		std::array<bool, maxNeighbourAndSelfCount> result;
-		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
-		{
-			result[i] = borderCheck[i];
-		}
+		auto result = bordersToHost();
 
 		synchronized = cudaMemcpyDeviceToHost;
+		commited = false;
 		return result;
+	}
+
+	void nextGenerationCommit()
+	{
+		if(!commited)
+			std::swap(central, next);
+		commited = true;
 	}
 
 	void setAt(std::size_t i, std::size_t j, bool what)
@@ -171,7 +234,7 @@ public:
 		synchronized = cudaMemcpyHostToDevice;
 	}
 
-	bool getAt(std::size_t i, std::size_t j)
+	bool getAt(std::size_t i, std::size_t j) const
 	{
 		if(synchronized == cudaMemcpyDeviceToHost)
 		{
@@ -183,7 +246,188 @@ public:
 	}
 };
 
+void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
+{
+	for(int i = 0; i < maxNeighbourAndSelfCount; ++i)
+	{
+		if(borders[i])
+			std::cout << i;
+		else
+			std::cout << " ";
+	}
+}
+
+class GameOfLife
+{
+	typedef std::map<position_type, GameOfLifeBlock> blocks_type;
+	GameOfLifeBlock emptyBlock;
+	blocks_type blocks;
+	std::vector<GameOfLifeBlock> cachedEmptyBlocks;
+	std::vector<blocks_type::value_type> materializationRequests;
+	std::vector<blocks_type::key_type> dematerializationRequests;
+
+	bool isEmptyBlock(const GameOfLifeBlock* input)
+	{
+		return input == &emptyBlock;
+	}
+
+	const GameOfLifeBlock* getAt(position_type pos)
+	{
+		auto it = blocks.find(pos);
+		if(it != blocks.end())
+		{
+			return &it->second;
+		}
+		else
+		{
+			return &emptyBlock;
+		}
+	}
+
+	std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount> getNeighbours(const blocks_type::value_type& x)
+	{
+		auto& position = x.first;
+		std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount> result = 
+		{
+			getAt(shift(position, 0)),
+			getAt(shift(position, 1)),
+			getAt(shift(position, 2)),
+			getAt(shift(position, 3)),
+			&x.second,
+			getAt(shift(position, 5)),
+			getAt(shift(position, 6)),
+			getAt(shift(position, 7)),
+			getAt(shift(position, 8)),
+		};
+		return result;
+	}
+
+	void materializeAt(position_type pos)
+	{
+		std::cout << "materialization request: " << pos.first << " " << pos.second << "\n";
+		materializationRequests.emplace_back(pos, GameOfLifeBlock());
+	}
+
+	void dematerializeAt(position_type pos)
+	{
+		std::cout << "dematerialization request: " << pos.first << " " << pos.second << "\n";
+		dematerializationRequests.push_back(pos);
+	}
+
+	void materializationCommit()
+	{
+		std::cout << "materialization commit\n";
+		for(auto& key : dematerializationRequests)
+		{
+			blocks.erase(key);
+		}
+		dematerializationRequests.clear();
+		for(auto& kvp : materializationRequests)
+		{
+			blocks.insert(std::move(kvp));
+		}
+		materializationRequests.clear();
+	}
+
+	void simulateRoundFor(blocks_type::value_type& kvp)
+	{
+		auto& position = kvp.first;
+		auto& block = kvp.second;
+
+		auto neighbours = getNeighbours(kvp);
+		auto borders = block.nextGeneration(neighbours);
+		std::cout << "simulation at: " << kvp.first.first << " " << kvp.first.second << " ";
+		printBorder(borders);
+		std::cout << "\n";
+		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+		{
+			if(borders[i] && isEmptyBlock(neighbours[i]))
+			{
+				materializeAt(shift(position, i));
+			}
+
+			if(!borders[center])
+			{
+				dematerializeAt(position);
+			}
+		}
+	}
+
+public:
+	void nextGeneration()
+	{
+		for(auto& kvp : blocks)
+		{
+			simulateRoundFor(kvp);
+		}
+		while(!materializationRequests.empty())
+		{
+			for(auto& kvp : materializationRequests)
+			{
+				simulateRoundFor(kvp);
+			}
+			materializationCommit();
+		}
+		for(auto& kvp : blocks)
+		{
+			kvp.second.nextGenerationCommit();
+		}
+	}
+
+	std::vector<std::vector<bool>> dumpStateAt(position_type at)
+	{
+		std::vector<std::vector<bool>> dump(blockDimension, std::vector<bool>(blockDimension));
+		auto& block = *getAt(at);
+		for(int j = 0; j < blockDimension; ++j)
+		{
+			for(int i = 0; i < blockDimension; ++i)
+			{
+				dump[i][j] = block.getAt(i, j);
+			}
+		}
+		return dump;
+	}
+
+	GameOfLife()
+	{
+		auto it = blocks.emplace(position_type(0, 0), GameOfLifeBlock());
+		auto& block = it.first->second;
+		// create glider
+		block.setAt(51, 10, true);
+		block.setAt(52, 11, true);
+		block.setAt(50, 12, true);
+		block.setAt(51, 12, true);
+		block.setAt(52, 12, true);
+	}
+};
+
 int main()
+{
+	GameOfLife game;
+	for(int i = 0; i < 50; ++i)
+	{
+		game.nextGeneration();
+		if(i >= 38)
+		{
+			for(int i = 0; i <= 8; ++i)
+			{
+				auto pos = shift(position_type(0, 0), i);
+				auto dump = game.dumpStateAt(pos);
+				std::cout << pos.first << " " << pos.second << "\n";
+				for(int j = 0; j < blockDimension; ++j)
+				{
+					for(int i = 0; i < blockDimension; ++i)
+					{
+						std::cout << (dump[i][j] ? "X" : " ");
+					}
+					std::cout << "|" << j << "\n";
+				}
+			}
+		}
+	}
+}
+
+int oldMain()
 {
 	std::array<GameOfLifeBlock, maxNeighbourAndSelfCount> surrounding;
 	// create glider
@@ -219,4 +463,5 @@ int main()
 			std::cout << " ";
 	}
 	std::cout << "\n";
+	return 0;
 }
