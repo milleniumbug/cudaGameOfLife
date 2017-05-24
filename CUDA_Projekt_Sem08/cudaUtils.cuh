@@ -37,6 +37,7 @@ std::unique_ptr<T, CudaDeleter> cudaMakeUniqueArray(std::size_t count)
 	return std::unique_ptr<T, CudaDeleter>(typed);
 }
 
+// T: must be trivial
 template<typename T>
 class SynchronizedPrimitiveBuffer
 {
@@ -52,6 +53,27 @@ public:
 		
 	}
 
+	T* getHost()
+	{
+		return hostMemory.get();
+	}
+
+	const T* getHost() const
+	{
+		return hostMemory.get();
+	}
+
+	T* getDevice()
+	{
+		return deviceMemory.get();
+	}
+
+	const T* getDevice() const
+	{
+		return deviceMemory.get();
+	}
+
+
 	void toDevice()
 	{
 		reportCudaError(cudaMemcpy(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T), cudaMemcpyHostToDevice));
@@ -59,7 +81,7 @@ public:
 
 	void toHost()
 	{
-		reportCudaError(cudaMemcpy(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost));
+		reportCudaError(cudaMemcpy(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost));
 	}
 
 	std::size_t size() const

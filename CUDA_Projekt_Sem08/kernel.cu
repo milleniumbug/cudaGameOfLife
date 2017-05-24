@@ -37,7 +37,7 @@ __device__ bool rule(bool current, int neighbourCount)
 
 const int maxNeighbourCount = 8;
 const int maxNeighbourAndSelfCount = maxNeighbourCount + 1;
-const int central = 4;
+const int center = 4;
 const int upOrDown = 2;
 const int leftOrRight = 1;
 
@@ -49,27 +49,27 @@ __global__ void nextGeneration(bool* next_generation, const bool* const* surroun
 		return;
 
 	int neighbourCount =
-		surrounding[central + robert(x - 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y - 1, dim)*dim] +
-		surrounding[central +                                    robert(y - 1, dim) * upOrDown][x +                wrap(y - 1, dim)*dim] +
-		surrounding[central + robert(x + 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y - 1, dim)*dim] +
+		surrounding[center + robert(x - 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y - 1, dim)*dim] +
+		surrounding[center +                                    robert(y - 1, dim) * upOrDown][x +                wrap(y - 1, dim)*dim] +
+		surrounding[center + robert(x + 1, dim) * leftOrRight + robert(y - 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y - 1, dim)*dim] +
 
-		surrounding[central + robert(x - 1, dim) * leftOrRight                                ][wrap(x - 1, dim) + y*dim] +
-		surrounding[central + robert(x + 1, dim) * leftOrRight                                ][wrap(x + 1, dim) + y*dim] +
+		surrounding[center + robert(x - 1, dim) * leftOrRight                                ][wrap(x - 1, dim) + y*dim] +
+		surrounding[center + robert(x + 1, dim) * leftOrRight                                ][wrap(x + 1, dim) + y*dim] +
 
-		surrounding[central + robert(x - 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y + 1, dim)*dim] +
-		surrounding[central +                                    robert(y + 1, dim) * upOrDown][x +                wrap(y + 1, dim)*dim] +
-		surrounding[central + robert(x + 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y + 1, dim)*dim];
+		surrounding[center + robert(x - 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x - 1, dim) + wrap(y + 1, dim)*dim] +
+		surrounding[center +                                    robert(y + 1, dim) * upOrDown][x +                wrap(y + 1, dim)*dim] +
+		surrounding[center + robert(x + 1, dim) * leftOrRight + robert(y + 1, dim) * upOrDown][wrap(x + 1, dim) + wrap(y + 1, dim)*dim];
 
-	next_generation[x + y*dim] = rule(surrounding[central][x + y*dim], neighbourCount);
+	next_generation[x + y*dim] = rule(surrounding[center][x + y*dim], neighbourCount);
 
 	if(x == 0 && neighbourCount > 0)
-		out[central - leftOrRight] = true;
+		out[center - leftOrRight] = true;
 	if(x == dim - 1 && neighbourCount > 0)
-		out[central + leftOrRight] = true;
+		out[center + leftOrRight] = true;
 	if(y == 0 && neighbourCount > 0)
-		out[central - upOrDown] = true;
+		out[center - upOrDown] = true;
 	if(y == dim - 1 && neighbourCount > 0)
-		out[central + upOrDown] = true;
+		out[center + upOrDown] = true;
 }
 
 int main()
@@ -79,149 +79,58 @@ int main()
 	dim3 threadsPerBlock(16, 16);
 	dim3 dimensions(dim/threadsPerBlock.x, dim/threadsPerBlock.y);
 
-	auto hostCentral = std::make_unique<bool[]>(bufsize);
-	auto cudaCentral = cudaMakeUniqueArray<bool[]>(bufsize);
-	auto hostBorderCheck = std::make_unique<bool[]>(maxNeighbourAndSelfCount);
-	auto cudaBorderCheck = cudaMakeUniqueArray<bool[]>(maxNeighbourAndSelfCount);
+	SynchronizedPrimitiveBuffer<bool> central(bufsize);
+	SynchronizedPrimitiveBuffer<bool> borderCheck(maxNeighbourAndSelfCount);
 
 	auto hostSource = std::make_unique<bool[]>(bufsize);
-	// create a glider
-	hostSource[11 + 10 * dim] = true;
-	hostSource[12 + 11 * dim] = true;
-	hostSource[10 + 12 * dim] = true;
-	hostSource[11 + 12 * dim] = true;
-	hostSource[12 + 12 * dim] = true;
-	std::array<std::unique_ptr<bool[], CudaDeleter>, maxNeighbourAndSelfCount> cudaSurroundingPtrs =
+	std::array<SynchronizedPrimitiveBuffer<bool>, maxNeighbourAndSelfCount> cudaSurroundingPtrs =
 	{
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
-		cudaMakeUniqueArray<bool[]>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
+		SynchronizedPrimitiveBuffer<bool>(bufsize),
 	};
-	reportCudaError(cudaMemcpy(cudaSurroundingPtrs[central].get(), hostSource.get(), bufsize * sizeof cudaSurroundingPtrs[central][0], cudaMemcpyHostToDevice));
+	// create a glider
+	cudaSurroundingPtrs[center][11 + 10 * dim] = true;
+	cudaSurroundingPtrs[center][12 + 11 * dim] = true;
+	cudaSurroundingPtrs[center][10 + 12 * dim] = true;
+	cudaSurroundingPtrs[center][11 + 12 * dim] = true;
+	cudaSurroundingPtrs[center][12 + 12 * dim] = true;
+	cudaSurroundingPtrs[center].toDevice();
 	
-	auto hostCudaSurrounding = std::make_unique<bool*[]>(maxNeighbourAndSelfCount);
-	auto cudaCudaSurrounding = cudaMakeUniqueArray<bool*[]>(maxNeighbourAndSelfCount);
+	SynchronizedPrimitiveBuffer<bool*> cudaSurrounding(maxNeighbourAndSelfCount);
 	for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
-		hostCudaSurrounding[i] = cudaSurroundingPtrs[i].get();
+		cudaSurrounding[i] = cudaSurroundingPtrs[i].getDevice();
 	}
-	reportCudaError(cudaMemcpy(cudaCudaSurrounding.get(), hostCudaSurrounding.get(), maxNeighbourAndSelfCount * sizeof cudaCudaSurrounding[0], cudaMemcpyHostToDevice));
+	cudaSurrounding.toDevice();
 
-	reportCudaError(cudaMemcpy(cudaCentral.get(), hostCentral.get(), bufsize * sizeof cudaCentral[0], cudaMemcpyHostToDevice));
-	nextGeneration <<< dimensions, threadsPerBlock >>>(cudaCentral.get(), cudaCudaSurrounding.get(), dim, cudaBorderCheck.get());
-	reportCudaError(cudaMemcpy(hostCentral.get(), cudaCentral.get(), bufsize * sizeof cudaCentral[0], cudaMemcpyDeviceToHost));
+	central.toDevice();
+	nextGeneration <<< dimensions, threadsPerBlock >>>(central.getDevice(), cudaSurrounding.getDevice(), dim, borderCheck.getDevice());
+	central.toHost();
 
-	reportCudaError(cudaMemcpy(hostBorderCheck.get(), cudaBorderCheck.get(), maxNeighbourAndSelfCount * sizeof hostBorderCheck[0], cudaMemcpyDeviceToHost));
+	borderCheck.toHost();
 
 	for(int j = 0; j < dim; ++j)
 	{
 		for(int i = 0; i < dim; ++i)
 		{
-			std::cout << (hostCentral[j*dim + i] ? "X" : " ");
+			std::cout << (central[j*dim + i] ? "X" : " ");
 		}
 		std::cout << "\n";
 	}
 	std::cout << "\n";
 	for(int i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
-		if(hostBorderCheck[i])
+		if(borderCheck[i])
 			std::cout << i;
 		else
 			std::cout << " ";
 	}
 	std::cout << "\n";
-}
-
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size);
-
-__global__ void addKernel(int *c, const int *a, const int *b)
-{
-	int i = threadIdx.x;
-	c[i] = a[i] + b[i];
-}
-
-// Helper function for using CUDA to add vectors in parallel.
-cudaError_t addWithCuda(int *c, const int *a, const int *b, unsigned int size)
-{
-    int *dev_a = 0;
-    int *dev_b = 0;
-    int *dev_c = 0;
-    cudaError_t cudaStatus;
-
-    // Choose which GPU to run on, change this on a multi-GPU system.
-    cudaStatus = cudaSetDevice(0);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
-        goto Error;
-    }
-
-    // Allocate GPU buffers for three vectors (two input, one output)    .
-    cudaStatus = cudaMalloc((void**)&dev_c, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_a, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMalloc((void**)&dev_b, size * sizeof(int));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
-    }
-
-    // Copy input vectors from host memory to GPU buffers.
-    cudaStatus = cudaMemcpy(dev_a, a, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    cudaStatus = cudaMemcpy(dev_b, b, size * sizeof(int), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-    // Launch a kernel on the GPU with one thread for each element.
-    addKernel<<<1, size>>>(dev_c, dev_a, dev_b);
-
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
-    }
-    
-    // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-        goto Error;
-    }
-
-    // Copy output vector from GPU buffer to host memory.
-    cudaStatus = cudaMemcpy(c, dev_c, size * sizeof(int), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
-    }
-
-Error:
-    cudaFree(dev_c);
-    cudaFree(dev_a);
-    cudaFree(dev_b);
-    
-    return cudaStatus;
 }
