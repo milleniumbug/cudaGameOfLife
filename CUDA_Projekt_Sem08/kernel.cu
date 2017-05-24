@@ -304,7 +304,6 @@ class GameOfLife
 
 	void materializeAt(position_type pos)
 	{
-		std::cout << "materialization request: " << pos.first << " " << pos.second << "\n";
 		auto block = cachedEmptyBlocks.empty() ? GameOfLifeBlock() : std::move(cachedEmptyBlocks.back());
 		if(!cachedEmptyBlocks.empty())
 			cachedEmptyBlocks.pop_back();
@@ -313,13 +312,11 @@ class GameOfLife
 
 	void dematerializeAt(position_type pos)
 	{
-		std::cout << "dematerialization request: " << pos.first << " " << pos.second << "\n";
 		dematerializationRequests.push_back(pos);
 	}
 
 	void materializationCommit()
 	{
-		std::cout << "materialization commit\n";
 		for(auto& key : dematerializationRequests)
 		{
 			auto it = blocks.find(key);
@@ -344,9 +341,6 @@ class GameOfLife
 
 		auto neighbours = getNeighbours(kvp);
 		auto borders = block.nextGeneration(neighbours);
-		std::cout << "simulation at: " << kvp.first.first << " " << kvp.first.second << " ";
-		printBorder(borders);
-		std::cout << "\n";
 		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
 		{
 			if(borders[i] && isEmptyBlock(neighbours[i]))
@@ -363,7 +357,6 @@ class GameOfLife
 public:
 	void nextGeneration()
 	{
-		std::cout << "NEXTGEN\n";
 		for(auto& kvp : blocks)
 		{
 			simulateRoundFor(kvp);
@@ -438,43 +431,4 @@ int main()
 			printAtNear(game, position_type(0, 0));
 		}
 	}
-}
-
-int oldMain()
-{
-	std::array<GameOfLifeBlock, maxNeighbourAndSelfCount> surrounding;
-	// create glider
-	surrounding[center].setAt(11, 10, true);
-	surrounding[center].setAt(12, 11, true);
-	surrounding[center].setAt(10, 12, true);
-	surrounding[center].setAt(11, 12, true);
-	surrounding[center].setAt(12, 12, true);
-
-	std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount> surroundingIn;
-	std::transform(surrounding.begin(), surrounding.end(), surroundingIn.begin(), [](auto& x)
-	{
-		return &x;
-	});
-	std::array<bool, maxNeighbourAndSelfCount> borders;
-	for(int i = 0; i < 1000; ++i)
-		borders = surrounding[center].nextGeneration(surroundingIn);
-
-	for(int j = 0; j < blockDimension; ++j)
-	{
-		for(int i = 0; i < blockDimension; ++i)
-		{
-			std::cout << (surrounding[center].getAt(i, j) ? "X" : " ");
-		}
-		std::cout << "\n";
-	}
-	std::cout << "\n";
-	for(int i = 0; i < maxNeighbourAndSelfCount; ++i)
-	{
-		if(borders[i])
-			std::cout << i;
-		else
-			std::cout << " ";
-	}
-	std::cout << "\n";
-	return 0;
 }
