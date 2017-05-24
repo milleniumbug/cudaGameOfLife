@@ -5,7 +5,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-void reportCudaError(cudaError_t errorCode)
+inline void reportCudaError(cudaError_t errorCode)
 {
 	assert(errorCode == cudaSuccess);
 }
