@@ -15,6 +15,7 @@
 #include "gameOfLife.hpp"
 #include <string>
 #include <sstream>
+#include <chrono>
 
 void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 {
@@ -54,6 +55,28 @@ GameOfLife simpleGliderGame()
 	return game;
 }
 
+template<typename Duration>
+std::string adaptiveStringFromTime(Duration duration)
+{
+	std::string base = std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " microseconds (";
+	if(duration > std::chrono::milliseconds(100000))
+	{
+		return base + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(duration).count()) + " seconds)";
+	}
+	else if(duration > std::chrono::microseconds(100000))
+	{
+		return base + std::to_string(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()) + " milliseconds)";
+	}
+	else if(duration > std::chrono::nanoseconds(100000))
+	{
+		return base + std::to_string(std::chrono::duration_cast<std::chrono::microseconds>(duration).count()) + " microseconds)";
+	}
+	else
+	{
+		return base + std::to_string(std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count()) + " nanoseconds)";
+	}
+}
+
 void inputLoop(GameOfLife& game)
 {
 	std::string line;
@@ -76,10 +99,13 @@ void inputLoop(GameOfLife& game)
 				int number;
 				if(ss >> number)
 				{
+					auto before = std::chrono::high_resolution_clock::now();
 					for(int i = 0; i < number; ++i)
 					{
 						game.nextGeneration();
 					}
+					auto after = std::chrono::high_resolution_clock::now();
+					std::cout << "Executed in: " << adaptiveStringFromTime(after - before) << "\n";
 				}
 			}
 		}
