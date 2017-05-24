@@ -354,6 +354,8 @@ class GameOfLife
 		}
 	}
 
+	friend class GameOfLifeIterator;
+
 public:
 	void nextGeneration()
 	{
@@ -389,16 +391,26 @@ public:
 		return dump;
 	}
 
+	void setStateAt(position_type at, const std::vector<std::vector<bool>>& what)
+	{
+		if(isEmptyBlock(getAt(at)))
+		{
+			materializeAt(at);
+			materializationCommit();
+		}
+		auto& block = blocks.at(at);
+		for(int j = 0; j < blockDimension; ++j)
+		{
+			for(int i = 0; i < blockDimension; ++i)
+			{
+				block.setAt(i, j, what[i][j]);
+			}
+		}
+	}
+
 	GameOfLife()
 	{
-		auto it = blocks.emplace(position_type(0, 0), GameOfLifeBlock());
-		auto& block = it.first->second;
-		// create glider
-		block.setAt(51, 10, true);
-		block.setAt(52, 11, true);
-		block.setAt(50, 12, true);
-		block.setAt(51, 12, true);
-		block.setAt(52, 12, true);
+
 	}
 };
 
@@ -420,9 +432,22 @@ void printAtNear(GameOfLife& game, position_type pos)
 	}
 }
 
-int main()
+GameOfLife simpleGliderGame()
 {
 	GameOfLife game;
+	std::vector<std::vector<bool>> input(blockDimension, std::vector<bool>(blockDimension));
+	input[51][10] = true;
+	input[52][11] = true;
+	input[50][12] = true;
+	input[51][12] = true;
+	input[52][12] = true;
+	game.setStateAt(position_type(0, 0), input);
+	return game;
+}
+
+int main()
+{
+	GameOfLife game = simpleGliderGame();
 	for(int i = 0; i < 310; ++i)
 	{
 		game.nextGeneration();
