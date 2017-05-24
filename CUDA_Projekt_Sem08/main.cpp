@@ -13,6 +13,8 @@
 #include "gameOfLifeBlock.hpp"
 #include "config.hpp"
 #include "gameOfLife.hpp"
+#include <string>
+#include <sstream>
 
 void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 {
@@ -27,19 +29,15 @@ void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 
 void printAtNear(GameOfLife& game, position_type pos)
 {
-	for(int i = 0; i <= 8; ++i)
+	auto dump = game.dumpStateAt(pos);
+	std::cout << pos.first << " " << pos.second << "\n";
+	for(int j = 0; j < blockDimension; ++j)
 	{
-		auto nextPos = shift(pos, i);
-		auto dump = game.dumpStateAt(nextPos);
-		std::cout << nextPos.first << " " << nextPos.second << "\n";
-		for(int j = 0; j < blockDimension; ++j)
+		for(int i = 0; i < blockDimension; ++i)
 		{
-			for(int i = 0; i < blockDimension; ++i)
-			{
-				std::cout << (dump[i][j] ? "X" : " ");
-			}
-			std::cout << "|" << j << "\n";
+			std::cout << (dump[i][j] ? "X" : " ");
 		}
+		std::cout << "|" << j << "\n";
 	}
 }
 
@@ -56,15 +54,40 @@ GameOfLife simpleGliderGame()
 	return game;
 }
 
+void inputLoop(GameOfLife& game)
+{
+	std::string line;
+	while(std::getline(std::cin, line))
+	{
+		std::stringstream ss(line);
+		std::string command;
+		if(ss >> command)
+		{
+			if(command == "P")
+			{
+				position_type p;
+				if(ss >> p.first >> p.second)
+				{
+					printAtNear(game, p);
+				}
+			}
+			if(command == "N")
+			{
+				int number;
+				if(ss >> number)
+				{
+					for(int i = 0; i < number; ++i)
+					{
+						game.nextGeneration();
+					}
+				}
+			}
+		}
+	}
+}
+
 int main()
 {
 	GameOfLife game = simpleGliderGame();
-	for(int i = 0; i < 310; ++i)
-	{
-		game.nextGeneration();
-		if(i >= 299)
-		{
-			printAtNear(game, position_type(0, 0));
-		}
-	}
+	inputLoop(game);
 }
