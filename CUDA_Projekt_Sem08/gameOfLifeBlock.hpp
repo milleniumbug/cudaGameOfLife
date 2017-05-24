@@ -16,6 +16,7 @@ class GameOfLifeBlock
 public:
 	GameOfLifeBlock();
 	std::array<bool, maxNeighbourAndSelfCount> bordersToHost();
+	std::array<bool, maxNeighbourAndSelfCount> nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours);
 	std::array<bool, maxNeighbourAndSelfCount> nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours);
 	void nextGenerationCommit();
 	void setAt(std::size_t i, std::size_t j, bool what);

@@ -6,7 +6,7 @@
 const dim3 threadsPerBlock(threadsPerDimension, threadsPerDimension);
 const dim3 dimensions(blockDimension / threadsPerBlock.x, blockDimension / threadsPerBlock.y);
 
-__device__ int wrap(int in)
+__host__ __device__ int wrap(int in)
 {
 	return (in + blockDimension * 2) % blockDimension;
 }
@@ -14,7 +14,7 @@ __device__ int wrap(int in)
 // in < 0: -1
 // in >= 0 && in < wrapCounter: 0
 // in >= wrapCounter: 1
-__device__ int robert(int in)
+__host__ __device__ int robert(int in)
 {
 	if(in < 0)
 		return -1;
@@ -55,7 +55,7 @@ __device__ int robert(int in)
 // 1, 13: X
 // 1, 14: X
 // 1, 15: X
-__device__ bool rule(bool current, int neighbourCount)
+__host__ __device__ bool rule(bool current, int neighbourCount)
 {
 	if(neighbourCount == 2)
 		return current;
@@ -65,10 +65,8 @@ __device__ bool rule(bool current, int neighbourCount)
 		return false;
 }
 
-__global__ void nextGenerationKernel(bool* next_generation, const bool* const* surrounding, bool* out)
+__host__ __device__ void nextGenerationKernelImpl(bool* next_generation, const bool* const* surrounding, bool* out, int x, int y)
 {
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
 	if(x >= blockDimension || y >= blockDimension)
 		return;
 
@@ -108,6 +106,13 @@ __global__ void nextGenerationKernel(bool* next_generation, const bool* const* s
 	}
 }
 
+__global__ void nextGenerationKernel(bool* next_generation, const bool* const* surrounding, bool* out)
+{
+	int x = threadIdx.x + blockIdx.x * blockDim.x;
+	int y = threadIdx.y + blockIdx.y * blockDim.y;
+	nextGenerationKernelImpl(next_generation, surrounding, out, x, y);
+}
+
 GameOfLifeBlock::GameOfLifeBlock() :
 	central(blockDimension*blockDimension),
 	next(blockDimension*blockDimension),
@@ -127,6 +132,42 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::bordersToHost()
 	{
 		result[i] = borderCheck[i];
 	}
+	return result;
+}
+
+std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
+{
+	if(!commited)
+		return bordersToHost();
+
+	if(synchronized == cudaMemcpyDeviceToHost)
+	{
+		central.copyToHost();
+		synchronized = cudaMemcpyHostToHost;
+	}
+	cudaBzero(borderCheck);
+
+	auto toHost = [&]()
+	{
+		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+		{
+			cudaSurrounding[i] = neighbours[i]->central.getHost();
+		}
+		cudaSurrounding[center] = central.getHost();
+	};
+	toHost();
+	for(int j = 0; j < blockDimension; ++j)
+	{
+		for(int i = 0; i < blockDimension; ++i)
+		{
+			nextGenerationKernelImpl(next.getHost(), cudaSurrounding.getHost(), borderCheck.getHost(), i, j);
+		}
+	}
+	borderCheck.copyToDevice();
+	auto result = bordersToHost();
+
+	synchronized = cudaMemcpyHostToDevice;
+	commited = false;
 	return result;
 }
 
@@ -152,7 +193,7 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGeneration(const
 		cudaSurrounding.copyToDevice();
 	};
 	toDev();
-	nextGenerationKernel << < dimensions, threadsPerBlock >> > (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
+	nextGenerationKernel <<< dimensions, threadsPerBlock >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
 	auto result = bordersToHost();
 
 	synchronized = cudaMemcpyDeviceToHost;

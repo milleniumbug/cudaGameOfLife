@@ -4,6 +4,12 @@
 #include "common.hpp"
 #include "gameOfLifeBlock.hpp"
 
+enum class RunMode
+{
+	Cpu,
+	Gpu
+};
+
 class GameOfLife
 {
 	typedef std::map<position_type, GameOfLifeBlock> blocks_type;
@@ -19,9 +25,9 @@ class GameOfLife
 	void materializeAt(position_type pos);
 	void dematerializeAt(position_type pos);
 	void materializationCommit();
-	void simulateRoundFor(blocks_type::value_type& kvp);
+	void simulateRoundFor(blocks_type::value_type& kvp, RunMode runMode);
 public:
-	void nextGeneration();
+	void nextGeneration(RunMode runMode = RunMode::Gpu);
 	std::vector<std::vector<bool>> dumpStateAt(position_type at);
 	void setStateAt(position_type at, const std::vector<std::vector<bool>>& what);
 	GameOfLife();

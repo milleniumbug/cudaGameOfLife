@@ -70,13 +70,13 @@ void GameOfLife::materializationCommit()
 	materializationRequests.clear();
 }
 
-void GameOfLife::simulateRoundFor(blocks_type::value_type& kvp)
+void GameOfLife::simulateRoundFor(blocks_type::value_type& kvp, RunMode runMode)
 {
 	auto& position = kvp.first;
 	auto& block = kvp.second;
 
 	auto neighbours = getNeighbours(kvp);
-	auto borders = block.nextGeneration(neighbours);
+	auto borders = (runMode == RunMode::Cpu) ? block.nextGenerationCpu(neighbours) : block.nextGeneration(neighbours);
 	for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
 		if(borders[i] && isEmptyBlock(neighbours[i]))
@@ -93,17 +93,17 @@ void GameOfLife::simulateRoundFor(blocks_type::value_type& kvp)
 	}
 }
 
-void GameOfLife::nextGeneration()
+void GameOfLife::nextGeneration(RunMode runMode)
 {
 	for(auto& kvp : blocks)
 	{
-		simulateRoundFor(kvp);
+		simulateRoundFor(kvp, runMode);
 	}
 	while(!materializationRequests.empty() || !dematerializationRequests.empty())
 	{
 		for(auto& kvp : materializationRequests)
 		{
-			simulateRoundFor(kvp);
+			simulateRoundFor(kvp, runMode);
 		}
 		materializationCommit();
 	}

@@ -97,12 +97,21 @@ void inputLoop(GameOfLife& game)
 			if(command == "N")
 			{
 				int number;
+				std::string modeStr;
+				RunMode mode = RunMode::Gpu;
 				if(ss >> number)
 				{
+					if(ss >> modeStr)
+					{
+						if(modeStr == "CPU")
+							mode = RunMode::Cpu;
+						if(modeStr == "GPU")
+							mode = RunMode::Gpu;
+					}
 					auto before = std::chrono::high_resolution_clock::now();
 					for(int i = 0; i < number; ++i)
 					{
-						game.nextGeneration();
+						game.nextGeneration(mode);
 					}
 					auto after = std::chrono::high_resolution_clock::now();
 					std::cout << "Executed in: " << adaptiveStringFromTime(after - before) << "\n";
