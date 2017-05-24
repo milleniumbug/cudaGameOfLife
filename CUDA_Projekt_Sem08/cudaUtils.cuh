@@ -73,13 +73,12 @@ public:
 		return deviceMemory.get();
 	}
 
-
-	void toDevice()
+	void copyToDevice()
 	{
 		reportCudaError(cudaMemcpy(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T), cudaMemcpyHostToDevice));
 	}
 
-	void toHost()
+	void copyToHost()
 	{
 		reportCudaError(cudaMemcpy(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost));
 	}

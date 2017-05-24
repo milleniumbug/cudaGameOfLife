@@ -115,7 +115,6 @@ int main()
 	SynchronizedPrimitiveBuffer<bool> central(bufsize);
 	SynchronizedPrimitiveBuffer<bool> borderCheck(maxNeighbourAndSelfCount);
 
-	auto hostSource = std::make_unique<bool[]>(bufsize);
 	std::array<SynchronizedPrimitiveBuffer<bool>, maxNeighbourAndSelfCount> cudaSurroundingPtrs =
 	{
 		SynchronizedPrimitiveBuffer<bool>(bufsize),
@@ -134,20 +133,20 @@ int main()
 	cudaSurroundingPtrs[center][10 + 12 * dim] = true;
 	cudaSurroundingPtrs[center][11 + 12 * dim] = true;
 	cudaSurroundingPtrs[center][12 + 12 * dim] = true;
-	cudaSurroundingPtrs[center].toDevice();
+	cudaSurroundingPtrs[center].copyToDevice();
 	
 	SynchronizedPrimitiveBuffer<bool*> cudaSurrounding(maxNeighbourAndSelfCount);
 	for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
 		cudaSurrounding[i] = cudaSurroundingPtrs[i].getDevice();
 	}
-	cudaSurrounding.toDevice();
+	cudaSurrounding.copyToDevice();
 
-	central.toDevice();
+	central.copyToDevice();
 	nextGeneration <<< dimensions, threadsPerBlock >>>(central.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
-	central.toHost();
+	central.copyToHost();
 
-	borderCheck.toHost();
+	borderCheck.copyToHost();
 
 	for(int j = 0; j < dim; ++j)
 	{
