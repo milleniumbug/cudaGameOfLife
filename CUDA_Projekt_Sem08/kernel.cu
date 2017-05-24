@@ -14,6 +14,8 @@ const int center = 4;
 const int upOrDown = 2;
 const int leftOrRight = 1;
 const int blockDimension = 64;
+const dim3 threadsPerBlock(16, 16);
+const dim3 dimensions(blockDimension / threadsPerBlock.x, blockDimension / threadsPerBlock.y);
 
 __device__ int wrap(int in)
 {
@@ -74,7 +76,7 @@ __device__ bool rule(bool current, int neighbourCount)
 		return false;
 }
 
-__global__ void nextGeneration(bool* next_generation, const bool* const* surrounding, bool* out)
+__global__ void nextGenerationKernel(bool* next_generation, const bool* const* surrounding, bool* out)
 {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -105,61 +107,113 @@ __global__ void nextGeneration(bool* next_generation, const bool* const* surroun
 		out[center + upOrDown] = true;
 }
 
+class GameOfLifeBlock
+{
+	SynchronizedPrimitiveBuffer<bool> central;
+	SynchronizedPrimitiveBuffer<bool> next;
+	SynchronizedPrimitiveBuffer<bool> borderCheck;
+	SynchronizedPrimitiveBuffer<const bool*> cudaSurrounding;
+	cudaMemcpyKind synchronized;
+
+public:
+	GameOfLifeBlock() :
+		central(blockDimension*blockDimension),
+		next(blockDimension*blockDimension),
+		borderCheck(maxNeighbourAndSelfCount),
+		cudaSurrounding(maxNeighbourAndSelfCount),
+		synchronized(cudaMemcpyHostToHost) // cudaMemcpyHostToHost means it's synchronized
+	{
+		
+	}
+
+	std::array<bool, maxNeighbourAndSelfCount> nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
+	{
+		if(synchronized == cudaMemcpyHostToDevice)
+		{
+			central.copyToDevice();
+			synchronized = cudaMemcpyHostToHost;
+		}
+		cudaBzero(borderCheck);
+
+		auto toDev = [&]()
+		{
+			for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+			{
+				cudaSurrounding[i] = neighbours[i]->central.getDevice();
+			}
+			cudaSurrounding[center] = central.getDevice();
+			cudaSurrounding.copyToDevice();
+		};
+		toDev();
+		nextGenerationKernel <<< dimensions, threadsPerBlock >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
+		std::swap(central, next);
+		borderCheck.copyToHost();
+		std::array<bool, maxNeighbourAndSelfCount> result;
+		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+		{
+			result[i] = borderCheck[i];
+		}
+
+		synchronized = cudaMemcpyDeviceToHost;
+		return result;
+	}
+
+	void setAt(std::size_t i, std::size_t j, bool what)
+	{
+		if(synchronized == cudaMemcpyDeviceToHost)
+		{
+			central.copyToHost();
+			synchronized = cudaMemcpyHostToHost;
+		}
+
+		central[j*blockDimension + i] = what;
+
+		synchronized = cudaMemcpyHostToDevice;
+	}
+
+	bool getAt(std::size_t i, std::size_t j)
+	{
+		if(synchronized == cudaMemcpyDeviceToHost)
+		{
+			central.copyToHost();
+			synchronized = cudaMemcpyHostToHost;
+		}
+
+		return central[j*blockDimension + i];
+	}
+};
+
 int main()
 {
-	int dim = 64;
-	int bufsize = dim*dim;
-	dim3 threadsPerBlock(16, 16);
-	dim3 dimensions(dim/threadsPerBlock.x, dim/threadsPerBlock.y);
+	std::array<GameOfLifeBlock, maxNeighbourAndSelfCount> surrounding;
+	// create glider
+	surrounding[center].setAt(11, 10, true);
+	surrounding[center].setAt(12, 11, true);
+	surrounding[center].setAt(10, 12, true);
+	surrounding[center].setAt(11, 12, true);
+	surrounding[center].setAt(12, 12, true);
 
-	SynchronizedPrimitiveBuffer<bool> central(bufsize);
-	SynchronizedPrimitiveBuffer<bool> borderCheck(maxNeighbourAndSelfCount);
-
-	std::array<SynchronizedPrimitiveBuffer<bool>, maxNeighbourAndSelfCount> cudaSurroundingPtrs =
+	std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount> surroundingIn;
+	std::transform(surrounding.begin(), surrounding.end(), surroundingIn.begin(), [](auto& x)
 	{
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-		SynchronizedPrimitiveBuffer<bool>(bufsize),
-	};
-	// create a glider
-	cudaSurroundingPtrs[center][11 + 10 * dim] = true;
-	cudaSurroundingPtrs[center][12 + 11 * dim] = true;
-	cudaSurroundingPtrs[center][10 + 12 * dim] = true;
-	cudaSurroundingPtrs[center][11 + 12 * dim] = true;
-	cudaSurroundingPtrs[center][12 + 12 * dim] = true;
-	cudaSurroundingPtrs[center].copyToDevice();
-	
-	SynchronizedPrimitiveBuffer<bool*> cudaSurrounding(maxNeighbourAndSelfCount);
-	for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
+		return &x;
+	});
+	std::array<bool, maxNeighbourAndSelfCount> borders;
+	for(int i = 0; i < 1000; ++i)
+		borders = surrounding[center].nextGeneration(surroundingIn);
+
+	for(int j = 0; j < blockDimension; ++j)
 	{
-		cudaSurrounding[i] = cudaSurroundingPtrs[i].getDevice();
-	}
-	cudaSurrounding.copyToDevice();
-
-	central.copyToDevice();
-	nextGeneration <<< dimensions, threadsPerBlock >>>(central.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
-	central.copyToHost();
-
-	borderCheck.copyToHost();
-
-	for(int j = 0; j < dim; ++j)
-	{
-		for(int i = 0; i < dim; ++i)
+		for(int i = 0; i < blockDimension; ++i)
 		{
-			std::cout << (central[j*dim + i] ? "X" : " ");
+			std::cout << (surrounding[center].getAt(i, j) ? "X" : " ");
 		}
 		std::cout << "\n";
 	}
 	std::cout << "\n";
 	for(int i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
-		if(borderCheck[i])
+		if(borders[i])
 			std::cout << i;
 		else
 			std::cout << " ";

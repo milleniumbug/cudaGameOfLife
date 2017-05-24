@@ -98,3 +98,10 @@ public:
 		return hostMemory[pos];
 	}
 };
+
+template<typename T>
+void cudaBzero(SynchronizedPrimitiveBuffer<T>& input)
+{
+	memset(input.getHost(), 0, sizeof(T) * input.size());
+	reportCudaError(cudaMemset(input.getDevice(), 0, sizeof(T) * input.size()));
+}
