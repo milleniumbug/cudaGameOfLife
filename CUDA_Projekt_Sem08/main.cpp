@@ -149,9 +149,23 @@ void inputLoop(GameOfLife& game)
 	}
 }
 
+void printComputeCapability()
+{
+	int nDevices;
+	cudaGetDeviceCount(&nDevices);
+	for(int i = 0; i < nDevices; ++i)
+	{
+		cudaDeviceProp prop;
+		cudaGetDeviceProperties(&prop, i);
+		std::cout << "Device " << i << " compute capability: " << prop.major << "." << prop.minor << "\n";
+	}
+}
+
 int main()
 {
+	printComputeCapability();
 	std::cout << "Initializing board...\n";
+	
 	//GameOfLife game = simpleGliderGame();
 	GameOfLife game = randomBoardOfSize(position_type(20, 20));
 	std::cout << "Initialized.\n";
