@@ -99,12 +99,16 @@ void GameOfLife::nextGeneration(RunMode runMode)
 	{
 		simulateRoundFor(kvp, runMode);
 	}
+	std::vector<blocks_type::value_type> materializationCurrent;
 	while(!materializationRequests.empty() || !dematerializationRequests.empty())
 	{
-		for(auto& kvp : materializationRequests)
+		std::move(materializationRequests.begin(), materializationRequests.end(), std::back_inserter(materializationCurrent));
+		materializationRequests.clear();
+		for(auto& kvp : materializationCurrent)
 		{
 			simulateRoundFor(kvp, runMode);
 		}
+		std::swap(materializationRequests, materializationCurrent);
 		materializationCommit();
 	}
 	for(auto& kvp : blocks)

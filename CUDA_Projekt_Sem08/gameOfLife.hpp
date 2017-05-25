@@ -17,8 +17,8 @@ class GameOfLife
 	GameOfLifeBlock emptyBlock;
 	blocks_type blocks;
 	std::vector<GameOfLifeBlock> cachedEmptyBlocks;
-	std::list<blocks_type::value_type> materializationRequests;
-	std::list<blocks_type::key_type> dematerializationRequests;
+	std::vector<blocks_type::value_type> materializationRequests;
+	std::vector<blocks_type::key_type> dematerializationRequests;
 
 	bool isEmptyBlock(const GameOfLifeBlock* input);
 	const GameOfLifeBlock* getAt(position_type pos);

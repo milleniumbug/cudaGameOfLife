@@ -151,9 +151,9 @@ void inputLoop(GameOfLife& game)
 
 int main()
 {
-	//GameOfLife game = simpleGliderGame();
 	std::cout << "Initializing board...\n";
-	GameOfLife game = randomBoardOfSize(position_type(50, 50));
+	//GameOfLife game = simpleGliderGame();
+	GameOfLife game = randomBoardOfSize(position_type(20, 20));
 	std::cout << "Initialized.\n";
 	inputLoop(game);
 }
