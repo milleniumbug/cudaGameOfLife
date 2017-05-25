@@ -1,14 +1,12 @@
 #pragma once
+#include <iostream>
 #include <memory>
 #include <cassert>
 #include <type_traits>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-inline void reportCudaError(cudaError_t errorCode)
-{
-	assert(errorCode == cudaSuccess);
-}
+void reportCudaError(cudaError_t errorCode);
 
 struct CudaDeleter
 {

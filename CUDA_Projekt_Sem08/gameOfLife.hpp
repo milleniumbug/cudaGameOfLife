@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <map>
+#include <list>
 #include "common.hpp"
 #include "gameOfLifeBlock.hpp"
 
@@ -16,8 +17,8 @@ class GameOfLife
 	GameOfLifeBlock emptyBlock;
 	blocks_type blocks;
 	std::vector<GameOfLifeBlock> cachedEmptyBlocks;
-	std::vector<blocks_type::value_type> materializationRequests;
-	std::vector<blocks_type::key_type> dematerializationRequests;
+	std::list<blocks_type::value_type> materializationRequests;
+	std::list<blocks_type::key_type> dematerializationRequests;
 
 	bool isEmptyBlock(const GameOfLifeBlock* input);
 	const GameOfLifeBlock* getAt(position_type pos);

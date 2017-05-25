@@ -16,6 +16,7 @@
 #include <string>
 #include <sstream>
 #include <chrono>
+#include <random>
 
 void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 {
@@ -52,6 +53,33 @@ GameOfLife simpleGliderGame()
 	input[51][12] = true;
 	input[52][12] = true;
 	game.setStateAt(position_type(0, 0), input);
+	return game;
+}
+
+GameOfLife randomBoardOfSize(position_type dimensions)
+{
+	GameOfLife game;
+	std::mt19937 mt;
+	std::bernoulli_distribution bernoulli;
+	std::vector<std::vector<bool>> input(blockDimension, std::vector<bool>(blockDimension));
+	auto randomBoard = [&]()
+	{
+		for(int i = 0; i < blockDimension; ++i)
+		{
+			for(int j = 0; j < blockDimension; ++j)
+			{
+				input[i][j] = bernoulli(mt);
+			}
+		}
+	};
+	for(int j = 0; j < dimensions.second; ++j)
+	{
+		for(int i = 0; i < dimensions.first; ++i)
+		{
+			randomBoard();
+			game.setStateAt(position_type(i, j), input);
+		}
+	}
 	return game;
 }
 
@@ -123,6 +151,15 @@ void inputLoop(GameOfLife& game)
 
 int main()
 {
-	GameOfLife game = simpleGliderGame();
+	//GameOfLife game = simpleGliderGame();
+	std::cout << "Initializing board...\n";
+	GameOfLife game = randomBoardOfSize(position_type(50, 50));
+	std::cout << "Initialized.\n";
 	inputLoop(game);
+}
+
+void reportCudaError(cudaError_t errorCode)
+{
+	if(errorCode != cudaSuccess)
+		std::cerr << cudaGetErrorString(errorCode) << "\n";
 }
