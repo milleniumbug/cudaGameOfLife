@@ -17,6 +17,7 @@
 #include <sstream>
 #include <chrono>
 #include <random>
+#include "sampleBoards.hpp"
 
 void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 {
@@ -29,58 +30,23 @@ void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 	}
 }
 
+void printVec(const std::vector<std::vector<bool>>& vec)
+{	
+	for(int i = 0; i < blockDimension; ++i)
+	{
+		for(int j = 0; j < blockDimension; ++j)
+		{
+			std::cout << (vec[i][j] ? "X" : " ");
+		}
+		std::cout << "|" << i << "\n";
+	}
+}
+
 void printAtNear(GameOfLife& game, position_type pos)
 {
 	auto dump = game.dumpStateAt(pos);
 	std::cout << pos.first << " " << pos.second << "\n";
-	for(int j = 0; j < blockDimension; ++j)
-	{
-		for(int i = 0; i < blockDimension; ++i)
-		{
-			std::cout << (dump[i][j] ? "X" : " ");
-		}
-		std::cout << "|" << j << "\n";
-	}
-}
-
-GameOfLife simpleGliderGame()
-{
-	GameOfLife game;
-	std::vector<std::vector<bool>> input(blockDimension, std::vector<bool>(blockDimension));
-	input[51][10] = true;
-	input[52][11] = true;
-	input[50][12] = true;
-	input[51][12] = true;
-	input[52][12] = true;
-	game.setStateAt(position_type(0, 0), input);
-	return game;
-}
-
-GameOfLife randomBoardOfSize(position_type dimensions)
-{
-	GameOfLife game;
-	std::mt19937 mt;
-	std::bernoulli_distribution bernoulli;
-	std::vector<std::vector<bool>> input(blockDimension, std::vector<bool>(blockDimension));
-	auto randomBoard = [&]()
-	{
-		for(int i = 0; i < blockDimension; ++i)
-		{
-			for(int j = 0; j < blockDimension; ++j)
-			{
-				input[i][j] = bernoulli(mt);
-			}
-		}
-	};
-	for(int j = 0; j < dimensions.second; ++j)
-	{
-		for(int i = 0; i < dimensions.first; ++i)
-		{
-			randomBoard();
-			game.setStateAt(position_type(i, j), input);
-		}
-	}
-	return game;
+	printVec(dump);
 }
 
 template<typename Duration>
@@ -163,6 +129,7 @@ void printComputeCapability()
 
 int main()
 {
+	extern void test();	test();
 	printComputeCapability();
 	std::cout << "Initializing board...\n";
 	

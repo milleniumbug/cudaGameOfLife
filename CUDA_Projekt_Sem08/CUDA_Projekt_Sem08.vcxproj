@@ -151,6 +151,8 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="sampleBoards.cpp" />
+    <ClCompile Include="test.cpp" />
     <CudaCompile Include="gameOfLifeBlock.cu" />
     <ClCompile Include="main.cpp">
       <FileType>Document</FileType>
@@ -162,6 +164,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="cudaUtils.cuh" />
     <ClInclude Include="gameOfLife.hpp" />
     <ClInclude Include="gameOfLifeBlock.hpp" />
+    <ClInclude Include="sampleBoards.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common.cpp" />
