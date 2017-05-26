@@ -24,3 +24,10 @@ The kernel is launched with something like this:
 ```
 
 `bordersToHost()` runs a `cudaMemcpy` in order to get the border information back to host (AFAIK this is horrible because it's synchronous)
+
+Performance improvements
+------------------------
+
+2000 generations on 20x20 block board with blocks = 64x64:
+
+d35e8018e87a11d07e7ac159ba7e998439d5c2ff: 275 seconds

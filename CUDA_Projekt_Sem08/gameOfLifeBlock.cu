@@ -125,7 +125,7 @@ GameOfLifeBlock::GameOfLifeBlock() :
 
 }
 
-std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::bordersToHost()
+std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::collectBoundaryInfo()
 {
 	borderCheck.copyToHost();
 	std::array<bool, maxNeighbourAndSelfCount> result;
@@ -136,10 +136,10 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::bordersToHost()
 	return result;
 }
 
-std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
+void GameOfLifeBlock::nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
 {
 	if(!commited)
-		return bordersToHost();
+		return;
 
 	if(synchronized == cudaMemcpyDeviceToHost)
 	{
@@ -165,17 +165,15 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGenerationCpu(co
 		}
 	}
 	borderCheck.copyToDevice();
-	auto result = bordersToHost();
 
 	synchronized = cudaMemcpyHostToDevice;
 	commited = false;
-	return result;
 }
 
-std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
+void GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
 {
 	if(!commited)
-		return bordersToHost();
+		return;
 
 	if(synchronized == cudaMemcpyHostToDevice)
 	{
@@ -195,11 +193,9 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::nextGeneration(const
 	};
 	toDev();
 	nextGenerationKernel <<< dimensions, threadsPerBlock >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
-	auto result = bordersToHost();
 
 	synchronized = cudaMemcpyDeviceToHost;
 	commited = false;
-	return result;
 }
 
 void GameOfLifeBlock::setAt(std::size_t i, std::size_t j, bool what)

@@ -27,6 +27,7 @@ class GameOfLife
 	void dematerializeAt(position_type pos);
 	void materializationCommit();
 	void simulateRoundFor(blocks_type::value_type& kvp, RunMode runMode);
+	void materializeNeighbours(blocks_type::value_type& kvp);
 public:
 	void nextGeneration(RunMode runMode = RunMode::Gpu);
 	std::vector<std::vector<bool>> dumpStateAt(position_type at);
