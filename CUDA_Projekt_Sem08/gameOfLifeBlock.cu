@@ -8,7 +8,8 @@ const dim3 dimensions(blockDimension / threadsPerBlock.x, blockDimension / threa
 
 __host__ __device__ int wrap(int in)
 {
-	return (in + blockDimension * 2) % blockDimension;
+	// thanks https://stackoverflow.com/a/44184152/1012936
+	return ((in % blockDimension) + blockDimension) % blockDimension;
 }
 
 // in < 0: -1
