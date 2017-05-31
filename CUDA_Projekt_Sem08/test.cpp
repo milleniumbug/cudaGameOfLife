@@ -17,14 +17,6 @@ void testBasic()
 	actual = board.dumpStateAt(position_type(0, 0));
 	if(actual != expected)
 		std::cout << "GPU TEST FAIL\n";
-	board = randomBoardOfSize(position_type(20, 20));
-	for(int i = 0; i < 20; ++i)
-	{
-		board.nextGeneration(RunMode::Cpu);
-	}
-	actual = board.dumpStateAt(position_type(0, 0));
-	if(actual != expected)
-		std::cout << "CPU TEST FAIL\n";
 }
 
 void test()
