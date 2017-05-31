@@ -71,6 +71,8 @@ std::string adaptiveStringFromTime(Duration duration)
 	}
 }
 
+bool test(const std::string& name, bool notifyOnSuccess);
+
 void inputLoop(GameOfLife& game)
 {
 	std::string line;
@@ -111,6 +113,14 @@ void inputLoop(GameOfLife& game)
 					std::cout << "Executed in: " << adaptiveStringFromTime(after - before) << "\n";
 				}
 			}
+			if(command == "TEST")
+			{
+				std::string testName;
+				if(ss >> testName)
+				{
+					test(testName, true);
+				}
+			}
 		}
 	}
 }
@@ -129,7 +139,6 @@ void printComputeCapability()
 
 int main()
 {
-	extern void test();	test();
 	printComputeCapability();
 	std::cout << "Initializing board...\n";
 	
