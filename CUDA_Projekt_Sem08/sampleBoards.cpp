@@ -22,7 +22,8 @@ GameOfLife randomBoardOfSize(position_type dimensions)
 {
 	GameOfLife game;
 	std::mt19937 mt;
-	std::bernoulli_distribution bernoulli;
+	//std::bernoulli_distribution is too slow
+	std::uniform_int_distribution<> bernoulli(0, 1);
 	std::vector<std::vector<bool>> input(blockDimension, std::vector<bool>(blockDimension));
 	auto randomBoard = [&]()
 	{
@@ -30,7 +31,7 @@ GameOfLife randomBoardOfSize(position_type dimensions)
 		{
 			for(int j = 0; j < blockDimension; ++j)
 			{
-				input[i][j] = bernoulli(mt);
+				input[i][j] = static_cast<bool>(bernoulli(mt));
 			}
 		}
 	};
