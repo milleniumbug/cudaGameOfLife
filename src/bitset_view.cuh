@@ -1,11 +1,14 @@
 #pragma once
 #include <cstddef>
+#include <climits>
 #include <host_defines.h>
 
 template<typename Integral>
 class bitset_view
 {
 	Integral* underlying;
+
+	static const std::size_t bitCount = sizeof(Integral) * CHAR_BIT;
 
 public:
 
@@ -43,12 +46,12 @@ public:
 
 	__host__ __device__ reference operator[](std::size_t pos)
 	{
-		return reference(underlying, static_cast<Integral>(1) << pos);
+		return reference(underlying + (pos / bitCount), static_cast<Integral>(1) << (pos % bitCount));
 	}
 
 	__host__ __device__ bool operator[](std::size_t pos) const
 	{
-		return reference(underlying, static_cast<Integral>(1) << pos);
+		return reference(underlying + (pos / bitCount), static_cast<Integral>(1) << (pos % bitCount));
 	}
 
 	__host__ __device__ bitset_view(Integral* underlying) :
@@ -57,9 +60,3 @@ public:
 
 	}
 };
-
-template<typename Integral>
-__host__ __device__ bitset_view<Integral> bitview(Integral& what)
-{
-	return bitset_view<Integral>(&what);
-}
