@@ -1,13 +1,10 @@
 
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
 #include <stdio.h>
 #include <cassert>
 #include <array>
 #include <iostream>
 #include <utility>
-#include "cudaUtils.cuh"
+#include "cudaUtils.hpp"
 #include <map>
 #include <vector>
 #include "gameOfLifeBlock.hpp"
@@ -125,18 +122,6 @@ void inputLoop(GameOfLife& game)
 	}
 }
 
-void printComputeCapability()
-{
-	int nDevices;
-	cudaGetDeviceCount(&nDevices);
-	for(int i = 0; i < nDevices; ++i)
-	{
-		cudaDeviceProp prop;
-		cudaGetDeviceProperties(&prop, i);
-		std::cout << "Device " << i << " compute capability: " << prop.major << "." << prop.minor << "\n";
-	}
-}
-
 int main()
 {
 	printComputeCapability();
@@ -146,10 +131,4 @@ int main()
 	GameOfLife game = randomBoardOfSize(position_type(20, 20));
 	std::cout << "Initialized.\n";
 	inputLoop(game);
-}
-
-void reportCudaError(cudaError_t errorCode)
-{
-	if(errorCode != cudaSuccess)
-		std::cerr << cudaGetErrorString(errorCode) << "\n";
 }

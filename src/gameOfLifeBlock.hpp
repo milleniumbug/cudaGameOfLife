@@ -1,5 +1,5 @@
 #pragma once
-#include "cudaUtils.cuh"
+#include "cudaUtils.hpp"
 #include "common.hpp"
 #include <utility>
 #include <array>
@@ -10,7 +10,7 @@ class GameOfLifeBlock
 	SynchronizedPrimitiveBuffer<bool> next;
 	SynchronizedPrimitiveBuffer<bool> borderCheck;
 	SynchronizedPrimitiveBuffer<const bool*> cudaSurrounding;
-	mutable cudaMemcpyKind synchronized;
+	mutable unsigned synchronized;
 	bool commited;
 
 public:

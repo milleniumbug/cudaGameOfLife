@@ -7,15 +7,18 @@ cuda_add_executable(game_of_life
 	src/common.cpp
 	src/common.hpp
 	src/config.hpp
-	src/cudaUtils.cuh
+	src/cudaUtils.hpp
+	src/cudaUtils.cu
 	src/gameOfLife.cpp
 	src/gameOfLife.hpp
 	src/gameOfLifeBlock.cu
 	src/gameOfLifeBlock.hpp
 	src/main.cpp
+	src/make.hpp
 	src/sampleBoards.cpp
 	src/sampleBoards.hpp
 	src/test.cpp)
 
 # fucking CMake 2.8
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11")

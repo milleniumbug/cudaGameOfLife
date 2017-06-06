@@ -3,21 +3,23 @@
 #include <memory>
 #include <cassert>
 #include <type_traits>
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+#include "make.hpp"
 
+template<typename cudaError_t>
 void reportCudaError(cudaError_t errorCode);
 
 struct CudaDeleter
 {
-	template<typename T>
-	void operator()(T* ptr)
-	{
-		// lol, broken on VS2015
-		//static_assert(std::is_trivially_destructible<T>::value, "must be trivially destructible");
-		cudaFree(ptr);
-	}
+	void operator()(void* ptr) const;
 };
+
+namespace detail
+{
+	void* cudaCalloc(std::size_t size, std::size_t count);
+	void copyToDevice(void* dest, const void* src, std::size_t size);
+	void copyToHost(void* dest, const void* src, std::size_t size);
+	void cudaZeroOut(void* what, std::size_t size);
+}
 
 template<typename T>
 std::unique_ptr<T, CudaDeleter> cudaMakeUniqueArray(std::size_t count)
@@ -25,12 +27,7 @@ std::unique_ptr<T, CudaDeleter> cudaMakeUniqueArray(std::size_t count)
 	typedef typename std::unique_ptr<T, CudaDeleter>::element_type element_type;
 	// lol, broken on VS2015
 	//static_assert(std::is_trivially_destructible<element_type>::value, "must be trivially destructible");
-	void* untyped;
-	cudaError_t cudaStatus;
-	cudaStatus = cudaMalloc(&untyped, count * sizeof(element_type));
-	reportCudaError(cudaStatus);
-	cudaStatus = cudaMemset(untyped, 0, count * sizeof(element_type));
-	reportCudaError(cudaStatus);
+	auto untyped = detail::cudaCalloc(sizeof(element_type), count);
 	auto typed = static_cast<element_type*>(untyped);
 	return std::unique_ptr<T, CudaDeleter>(typed);
 }
@@ -44,7 +41,7 @@ class SynchronizedPrimitiveBuffer
 	std::size_t size_;
 public:
 	SynchronizedPrimitiveBuffer(std::size_t size) :
-		hostMemory(std::make_unique<T[]>(size)),
+		hostMemory(wiertlo::make_unique<T[]>(size)),
 		deviceMemory(cudaMakeUniqueArray<T[]>(size)),
 		size_(size)
 	{
@@ -73,12 +70,12 @@ public:
 
 	void copyToDevice()
 	{
-		reportCudaError(cudaMemcpy(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T), cudaMemcpyHostToDevice));
+		detail::copyToDevice(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T));
 	}
 
 	void copyToHost()
 	{
-		reportCudaError(cudaMemcpy(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost));
+		detail::copyToDevice(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T));
 	}
 
 	std::size_t size() const
@@ -101,5 +98,7 @@ template<typename T>
 void cudaBzero(SynchronizedPrimitiveBuffer<T>& input)
 {
 	memset(input.getHost(), 0, sizeof(T) * input.size());
-	reportCudaError(cudaMemset(input.getDevice(), 0, sizeof(T) * input.size()));
+	detail::cudaZeroOut(input.getDevice(), sizeof(T) * input.size());
 }
+
+void printComputeCapability();
