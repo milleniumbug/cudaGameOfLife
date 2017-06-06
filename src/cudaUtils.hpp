@@ -103,4 +103,4 @@ void cudaBzero(SynchronizedPrimitiveBuffer<T>& input)
 	detail::cudaZeroOut(input.getDevice(), sizeof(T) * input.size());
 }
 
-void printComputeCapability();
+void printGpuInfo();

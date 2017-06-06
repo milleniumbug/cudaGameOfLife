@@ -56,7 +56,7 @@ namespace detail
 	}
 }
 
-void printComputeCapability()
+void printGpuInfo()
 {
 	int nDevices;
 	cudaGetDeviceCount(&nDevices);

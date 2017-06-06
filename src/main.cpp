@@ -124,7 +124,7 @@ void inputLoop(GameOfLife& game)
 
 int main()
 {
-	printComputeCapability();
+	printGpuInfo();
 	std::cout << "Initializing board...\n";
 	
 	//GameOfLife game = simpleGliderGame();
