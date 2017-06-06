@@ -94,7 +94,7 @@ CudaStream& CudaStream::getDefault()
 CudaStream::CudaStream()
 {
 	cudaStream_t raw_stream;
-	cudaStreamCreateWithFlags(&raw_stream, 0);
+	cudaStreamCreateWithFlags(&raw_stream, cudaStreamDefault);
 	stream.reset(raw_stream);
 }
 

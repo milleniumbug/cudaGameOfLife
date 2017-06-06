@@ -31,3 +31,7 @@ Performance improvements
 2000 generations on 20x20 block board with blocks = 64x64:
 
 d35e8018e87a11d07e7ac159ba7e998439d5c2ff: 275 seconds
+
+2000 generations
+Without streams: Executed in: 139218618 microseconds (139 seconds)
+With streams   : Executed in: 92492721 microseconds (92492 milliseconds)
