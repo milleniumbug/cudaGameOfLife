@@ -40,14 +40,14 @@ namespace detail
 		reportCudaError(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost));
 	}
 
-	void copyToDeviceAsync(void* dest, const void* src, std::size_t size)
+	void copyToDeviceAsync(void* dest, const void* src, std::size_t size, void* stream)
 	{
-		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice));
+		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice, static_cast<cudaStream_t>(stream)));
 	}
 
-	void copyToHostAsync(void* dest, const void* src, std::size_t size)
+	void copyToHostAsync(void* dest, const void* src, std::size_t size, void* stream)
 	{
-		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost));
+		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost, static_cast<cudaStream_t>(stream)));
 	}
 
 	void cudaZeroOut(void* what, std::size_t size)
@@ -66,4 +66,27 @@ void printGpuInfo()
 		cudaGetDeviceProperties(&prop, i);
 		std::cout << "Device " << i << " compute capability: " << prop.major << "." << prop.minor << "\n";
 	}
+}
+
+void CudaStream::CudaStreamDeleter::operator()(void* stream) const
+{
+	cudaStreamDestroy(static_cast<cudaStream_t>(stream));
+}
+
+CudaStream::CudaStream(void* raw)
+{
+	stream.reset(raw);
+}
+
+CudaStream& CudaStream::getDefault()
+{
+	static CudaStream stream(nullptr);
+	return stream;
+}
+
+CudaStream::CudaStream()
+{
+	cudaStream_t raw_stream;
+	cudaStreamCreateWithFlags(&raw_stream, 0);
+	stream.reset(raw_stream);
 }

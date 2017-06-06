@@ -8,6 +8,20 @@
 template<typename cudaError_t>
 void reportCudaError(cudaError_t errorCode);
 
+class CudaStream
+{
+	struct CudaStreamDeleter
+	{
+		void operator()(void* stream) const;
+	};
+	explicit CudaStream(void* raw);
+	std::unique_ptr<void, CudaStreamDeleter> stream;
+public:
+	static CudaStream& getDefault();
+	CudaStream();
+	void* get();
+};
+
 struct CudaDeleter
 {
 	void operator()(void* ptr) const;
@@ -18,8 +32,8 @@ namespace detail
 	void* cudaCalloc(std::size_t size, std::size_t count);
 	void copyToDevice(void* dest, const void* src, std::size_t size);
 	void copyToHost(void* dest, const void* src, std::size_t size);
-	void copyToDeviceAsync(void* dest, const void* src, std::size_t size);
-	void copyToHostAsync(void* dest, const void* src, std::size_t size);
+	void copyToDeviceAsync(void* dest, const void* src, std::size_t size, void* stream);
+	void copyToHostAsync(void* dest, const void* src, std::size_t size, void* stream);
 	void cudaZeroOut(void* what, std::size_t size);
 }
 
@@ -78,6 +92,16 @@ public:
 	void copyToHost()
 	{
 		detail::copyToHost(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T));
+	}
+
+	void copyToDeviceAsync(CudaStream& stream)
+	{
+		detail::copyToDeviceAsync(deviceMemory.get(), hostMemory.get(), size_ * sizeof(T), stream.get());
+	}
+
+	void copyToHostAsync(CudaStream& stream)
+	{
+		detail::copyToHostAsync(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T), stream.get());
 	}
 
 	std::size_t size() const

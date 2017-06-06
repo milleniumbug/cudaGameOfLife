@@ -16,7 +16,6 @@ class GameOfLifeBlock
 public:
 	GameOfLifeBlock();
 	std::array<bool, maxNeighbourAndSelfCount> collectBoundaryInfo();
-	void nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours);
 	void nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours);
 	void nextGenerationCommit();
 	void setAt(std::size_t i, std::size_t j, bool what);

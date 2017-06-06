@@ -136,40 +136,6 @@ std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::collectBoundaryInfo(
 	return result;
 }
 
-void GameOfLifeBlock::nextGenerationCpu(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
-{
-	if(!commited)
-		return;
-
-	if(synchronized == cudaMemcpyDeviceToHost)
-	{
-		central.copyToHost();
-		synchronized = cudaMemcpyHostToHost;
-	}
-	cudaBzero(borderCheck);
-
-	auto toHost = [&]()
-	{
-		for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
-		{
-			cudaSurrounding[i] = neighbours[i]->central.getHost();
-		}
-		cudaSurrounding[center] = central.getHost();
-	};
-	toHost();
-	for(int j = 0; j < blockDimension; ++j)
-	{
-		for(int i = 0; i < blockDimension; ++i)
-		{
-			nextGenerationKernelImpl(next.getHost(), cudaSurrounding.getHost(), borderCheck.getHost(), i, j);
-		}
-	}
-	borderCheck.copyToDevice();
-
-	synchronized = cudaMemcpyHostToDevice;
-	commited = false;
-}
-
 void GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, maxNeighbourAndSelfCount>& neighbours)
 {
 	if(!commited)

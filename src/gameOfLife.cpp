@@ -76,10 +76,7 @@ void GameOfLife::simulateRoundFor(blocks_type::value_type& kvp, RunMode runMode)
 	auto& block = kvp.second;
 
 	auto neighbours = getNeighbours(kvp);
-	if(runMode == RunMode::Cpu)
-		block.nextGenerationCpu(neighbours);
-	else
-		block.nextGeneration(neighbours);
+	block.nextGeneration(neighbours);
 }
 
 void GameOfLife::materializeNeighbours(blocks_type::value_type& kvp)
