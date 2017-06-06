@@ -127,7 +127,8 @@ GameOfLifeBlock::GameOfLifeBlock() :
 
 std::array<bool, maxNeighbourAndSelfCount> GameOfLifeBlock::collectBoundaryInfo()
 {
-	borderCheck.copyToHost();
+	borderCheck.copyToHostAsync(stream);
+	stream.wait();
 	std::array<bool, maxNeighbourAndSelfCount> result;
 	for(std::size_t i = 0; i < maxNeighbourAndSelfCount; ++i)
 	{
@@ -146,7 +147,7 @@ void GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, ma
 		central.copyToDevice();
 		synchronized = cudaMemcpyHostToHost;
 	}
-	cudaBzero(borderCheck);
+	cudaBzeroAsync(borderCheck, stream);
 
 	auto toDev = [&]()
 	{
@@ -155,10 +156,10 @@ void GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, ma
 			cudaSurrounding[i] = neighbours[i]->central.getDevice();
 		}
 		cudaSurrounding[center] = central.getDevice();
-		cudaSurrounding.copyToDevice();
+		cudaSurrounding.copyToDeviceAsync(stream);
 	};
 	toDev();
-	nextGenerationKernel <<< dimensions, threadsPerBlock >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
+	nextGenerationKernel <<< dimensions, threadsPerBlock, 0, static_cast<cudaStream_t>(stream.get()) >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
 
 	synchronized = cudaMemcpyDeviceToHost;
 	commited = false;
@@ -191,6 +192,9 @@ bool GameOfLifeBlock::getAt(std::size_t i, std::size_t j) const
 void GameOfLifeBlock::nextGenerationCommit()
 {
 	if(!commited)
+	{
+		stream.wait();
 		std::swap(central, next);
+	}
 	commited = true;
 }

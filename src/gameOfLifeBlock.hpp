@@ -12,6 +12,7 @@ class GameOfLifeBlock
 	SynchronizedPrimitiveBuffer<const bool*> cudaSurrounding;
 	mutable unsigned synchronized;
 	bool commited;
+	CudaStream stream;
 
 public:
 	GameOfLifeBlock();

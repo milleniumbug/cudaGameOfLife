@@ -75,7 +75,9 @@ void printGpuInfo()
 
 void CudaStream::CudaStreamDeleter::operator()(void* stream) const
 {
-	cudaStreamDestroy(static_cast<cudaStream_t>(stream));
+	auto raw_stream = static_cast<cudaStream_t>(stream);
+	cudaStreamSynchronize(raw_stream);
+	cudaStreamDestroy(raw_stream);
 }
 
 CudaStream::CudaStream(void* raw)
@@ -94,6 +96,11 @@ CudaStream::CudaStream()
 	cudaStream_t raw_stream;
 	cudaStreamCreateWithFlags(&raw_stream, 0);
 	stream.reset(raw_stream);
+}
+
+void* CudaStream::get()
+{
+	return stream.get();
 }
 
 void CudaStream::wait() const
