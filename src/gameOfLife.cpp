@@ -1,6 +1,7 @@
 #include "gameOfLife.hpp"
 #include "gameOfLifeBlock.hpp"
 #include "config.hpp"
+#include <algorithm>
 
 bool GameOfLife::isEmptyBlock(const GameOfLifeBlock* input)
 {
