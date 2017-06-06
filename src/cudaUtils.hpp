@@ -75,7 +75,7 @@ public:
 
 	void copyToHost()
 	{
-		detail::copyToDevice(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T));
+		detail::copyToHost(hostMemory.get(), deviceMemory.get(), size_ * sizeof(T));
 	}
 
 	std::size_t size() const
