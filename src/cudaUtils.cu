@@ -40,6 +40,16 @@ namespace detail
 		reportCudaError(cudaMemcpy(dest, src, size, cudaMemcpyDeviceToHost));
 	}
 
+	void copyToDeviceAsync(void* dest, const void* src, std::size_t size)
+	{
+		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyHostToDevice));
+	}
+
+	void copyToHostAsync(void* dest, const void* src, std::size_t size)
+	{
+		reportCudaError(cudaMemcpyAsync(dest, src, size, cudaMemcpyDeviceToHost));
+	}
+
 	void cudaZeroOut(void* what, std::size_t size)
 	{
 		reportCudaError(cudaMemset(what, 0, size));

@@ -18,6 +18,8 @@ namespace detail
 	void* cudaCalloc(std::size_t size, std::size_t count);
 	void copyToDevice(void* dest, const void* src, std::size_t size);
 	void copyToHost(void* dest, const void* src, std::size_t size);
+	void copyToDeviceAsync(void* dest, const void* src, std::size_t size);
+	void copyToHostAsync(void* dest, const void* src, std::size_t size);
 	void cudaZeroOut(void* what, std::size_t size);
 }
 
