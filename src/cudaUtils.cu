@@ -54,6 +54,11 @@ namespace detail
 	{
 		reportCudaError(cudaMemset(what, 0, size));
 	}
+
+	void cudaZeroOutAsync(void* what, std::size_t size, void* stream)
+	{
+		reportCudaError(cudaMemsetAsync(what, 0, size, static_cast<cudaStream_t>(stream)));
+	}
 }
 
 void printGpuInfo()
@@ -89,4 +94,9 @@ CudaStream::CudaStream()
 	cudaStream_t raw_stream;
 	cudaStreamCreateWithFlags(&raw_stream, 0);
 	stream.reset(raw_stream);
+}
+
+void CudaStream::wait() const
+{
+	cudaStreamSynchronize(static_cast<cudaStream_t>(stream.get()));
 }

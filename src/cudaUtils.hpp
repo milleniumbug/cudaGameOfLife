@@ -20,6 +20,7 @@ public:
 	static CudaStream& getDefault();
 	CudaStream();
 	void* get();
+	void wait() const;
 };
 
 struct CudaDeleter
@@ -35,6 +36,7 @@ namespace detail
 	void copyToDeviceAsync(void* dest, const void* src, std::size_t size, void* stream);
 	void copyToHostAsync(void* dest, const void* src, std::size_t size, void* stream);
 	void cudaZeroOut(void* what, std::size_t size);
+	void cudaZeroOutAsync(void* what, std::size_t size, void* stream);
 }
 
 template<typename T>
@@ -125,6 +127,13 @@ void cudaBzero(SynchronizedPrimitiveBuffer<T>& input)
 {
 	memset(input.getHost(), 0, sizeof(T) * input.size());
 	detail::cudaZeroOut(input.getDevice(), sizeof(T) * input.size());
+}
+
+template<typename T>
+void cudaBzeroAsync(SynchronizedPrimitiveBuffer<T>& input, CudaStream& stream)
+{
+	memset(input.getHost(), 0, sizeof(T) * input.size());
+	detail::cudaZeroOutAsync(input.getDevice(), sizeof(T) * input.size(), stream.get());
 }
 
 void printGpuInfo();
