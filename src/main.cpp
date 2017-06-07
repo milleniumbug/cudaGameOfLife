@@ -131,7 +131,7 @@ int main()
 	std::cout << "Initializing board...\n";
 	
 	//GameOfLife game = simpleGliderGame();
-	GameOfLife game = randomBoardOfSize(position_type(10, 10));
+	GameOfLife game = randomBoardOfSize(position_type(20, 20));
 	std::cout << "Initialized.\n";
 	inputLoop(game);
 }
