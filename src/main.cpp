@@ -15,6 +15,8 @@
 #include <chrono>
 #include <random>
 #include "sampleBoards.hpp"
+#include <driver_types.h>
+#include <cuda_runtime_api.h>
 
 void printBorder(const std::array<bool, maxNeighbourAndSelfCount>& borders)
 {
@@ -124,6 +126,7 @@ void inputLoop(GameOfLife& game)
 
 int main()
 {
+	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 	printGpuInfo();
 	std::cout << "Initializing board...\n";
 	
