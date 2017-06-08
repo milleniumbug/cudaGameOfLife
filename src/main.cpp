@@ -126,7 +126,9 @@ void inputLoop(GameOfLife& game)
 
 int main()
 {
+#ifndef UNOPTIMIZED
 	cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+#endif
 	printGpuInfo();
 	std::cout << "Initializing board...\n";
 	

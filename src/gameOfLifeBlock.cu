@@ -120,7 +120,12 @@ GameOfLifeBlock::GameOfLifeBlock() :
 	borderCheck(maxNeighbourAndSelfCount),
 	cudaSurrounding(maxNeighbourAndSelfCount),
 	synchronized(cudaMemcpyHostToHost), // cudaMemcpyHostToHost means it's synchronized
-	commited(true)
+	commited(true),
+	stream(
+#ifdef UNOPTIMIZED
+		nullptr
+#endif
+	)
 {
 
 }
@@ -160,7 +165,9 @@ void GameOfLifeBlock::nextGeneration(const std::array<const GameOfLifeBlock*, ma
 	};
 	toDev();
 	nextGenerationKernel <<< dimensions, threadsPerBlock, 0, static_cast<cudaStream_t>(stream.get()) >>> (next.getDevice(), cudaSurrounding.getDevice(), borderCheck.getDevice());
-
+#ifdef UNOPTIMIZED
+	collectBoundaryInfo();
+#endif
 	synchronized = cudaMemcpyDeviceToHost;
 	commited = false;
 }

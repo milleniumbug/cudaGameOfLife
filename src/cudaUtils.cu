@@ -80,11 +80,6 @@ void CudaStream::CudaStreamDeleter::operator()(void* stream) const
 	cudaStreamDestroy(raw_stream);
 }
 
-CudaStream::CudaStream(void* raw)
-{
-	stream.reset(raw);
-}
-
 CudaStream& CudaStream::getDefault()
 {
 	static CudaStream stream(nullptr);
@@ -96,6 +91,11 @@ CudaStream::CudaStream()
 	cudaStream_t raw_stream;
 	cudaStreamCreateWithFlags(&raw_stream, cudaStreamDefault);
 	stream.reset(raw_stream);
+}
+
+CudaStream::CudaStream(std::nullptr_t)
+{
+
 }
 
 void* CudaStream::get()

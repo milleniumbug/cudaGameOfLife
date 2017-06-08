@@ -14,11 +14,11 @@ class CudaStream
 	{
 		void operator()(void* stream) const;
 	};
-	explicit CudaStream(void* raw);
 	std::unique_ptr<void, CudaStreamDeleter> stream;
 public:
 	static CudaStream& getDefault();
 	CudaStream();
+	explicit CudaStream(std::nullptr_t);
 	void* get();
 	void wait() const;
 };
